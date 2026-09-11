@@ -1,0 +1,23 @@
+{
+  "name": "haya-creator-workbench-remotion-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "prepare:job": "node scripts/run-auto-talking-head-job.mjs --prepare-only --no-motion",
+    "preview:job": "node scripts/run-auto-talking-head-job.mjs --preview-only --no-motion",
+    "render:job": "node scripts/run-auto-talking-head-job.mjs --no-motion"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.523",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.523"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "typescript": "5.9.3"
+  }
+}

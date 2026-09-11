@@ -1,0 +1,6 @@
+interface:
+  display_name: "Haya Creator Workbench"
+  short_description: "Content, editing, upload, publishing, and review in one workflow"
+  default_prompt: "Use $haya-creator-workbench to turn my idea or footage into a reviewed post, finished video, and safely published result."
+policy:
+  allow_implicit_invocation: true

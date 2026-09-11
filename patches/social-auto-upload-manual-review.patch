@@ -1,0 +1,148 @@
+diff --git a/sau_cli.py b/sau_cli.py
+index 0a12602..15368bc 100644
+--- a/sau_cli.py
++++ b/sau_cli.py
+@@ -88,6 +88,7 @@ class DouyinVideoUploadRequest:
+     headless: bool = True
+     declaration: str | None = None
+     collection_name: str | None = None
++    manual_review: bool = False
+ 
+ 
+ @dataclass(slots=True)
+@@ -434,6 +435,7 @@ async def upload_video(request: DouyinVideoUploadRequest) -> Path:
+         debug=request.debug,
+         headless=request.headless,
+         collection_name=request.collection_name,
++        manual_review=request.manual_review,
+     )
+     await app.douyin_upload_video()
+     return account_file
+@@ -823,6 +825,11 @@ def build_parser() -> argparse.ArgumentParser:
+         help="Exact Douyin self-declaration option text; omitted means do not set one",
+     )
+     upload_video_parser.add_argument("--collection", default=None, help="Optional collection name to add the work into (must already exist)")
++    upload_video_parser.add_argument(
++        "--manual-review",
++        action="store_true",
++        help="Prepare the publish page and wait for the user to review and click Publish",
++    )
+     add_runtime_flags(upload_video_parser)
+ 
+     upload_note_parser = douyin_actions.add_parser("upload-note", help="Upload one note to Douyin")
+@@ -1069,7 +1076,8 @@ async def dispatch(args: argparse.Namespace) -> int:
+                 publish_strategy=publish_strategy,
+                 debug=args.debug,
+                 headless=args.headless,
+-                collection_name=args.collection,
++                collection_name=getattr(args, "collection", None),
++                manual_review=getattr(args, "manual_review", False),
+             )
+             await upload_video(request)
+             print(f"Douyin video upload submitted: {request.video_file}")
+diff --git a/tests/test_douyin_declaration.py b/tests/test_douyin_declaration.py
+index efd8a24..7aa50cb 100644
+--- a/tests/test_douyin_declaration.py
++++ b/tests/test_douyin_declaration.py
+@@ -19,6 +19,14 @@ class DouyinDeclarationTests(unittest.TestCase):
+         video = DouYinVideo("标题", "/tmp/demo.mp4", [], 0, "/tmp/cookie.json")
+         self.assertIsNone(video.declaration)
+ 
++    def test_manual_review_is_explicit_and_defaults_off(self):
++        default_video = DouYinVideo("标题", "/tmp/demo.mp4", [], 0, "/tmp/cookie.json")
++        review_video = DouYinVideo(
++            "标题", "/tmp/demo.mp4", [], 0, "/tmp/cookie.json", manual_review=True
++        )
++        self.assertFalse(default_video.manual_review)
++        self.assertTrue(review_video.manual_review)
++
+     def test_legacy_positional_runtime_flags_keep_their_meaning(self):
+         video = DouYinVideo(
+             "标题", "/tmp/demo.mp4", [], 0, "/tmp/cookie.json",
+diff --git a/tests/test_sau_browser_cli.py b/tests/test_sau_browser_cli.py
+index 4da58c6..74ead4e 100644
+--- a/tests/test_sau_browser_cli.py
++++ b/tests/test_sau_browser_cli.py
+@@ -90,6 +90,17 @@ class BrowserCliParserTests(unittest.TestCase):
+             ])
+         self.assertIsNone(args.declaration)
+ 
++    def test_douyin_upload_video_accepts_manual_review(self):
++        with tempfile.TemporaryDirectory() as tmp_dir:
++            video_path = Path(tmp_dir) / "demo.mp4"
++            video_path.write_bytes(b"video")
++            args = sau_cli.build_parser().parse_args([
++                "douyin", "upload-video", "--account", "creator",
++                "--file", str(video_path), "--title", "标题",
++                "--manual-review",
++            ])
++        self.assertTrue(args.manual_review)
++
+     def test_douyin_request_legacy_positional_runtime_flags_keep_their_meaning(self):
+         request = sau_cli.DouyinVideoUploadRequest(
+             "creator", Path("demo.mp4"), "标题", "简介", [], 0,
+@@ -253,6 +264,7 @@ class BrowserCliDispatchTests(unittest.TestCase):
+         self.assertEqual(request.thumbnail_landscape_file, Path("landscape.png"))
+         self.assertEqual(request.thumbnail_portrait_file, Path("portrait.png"))
+         self.assertEqual(request.declaration, "已确认声明原文")
++        self.assertFalse(request.manual_review)
+ 
+     def test_dispatch_tencent_upload_video_uses_dual_thumbnail_request_fields(self):
+         args = Namespace(
+diff --git a/uploader/douyin_uploader/main.py b/uploader/douyin_uploader/main.py
+index f6ac2be..5a5306c 100644
+--- a/uploader/douyin_uploader/main.py
++++ b/uploader/douyin_uploader/main.py
+@@ -643,6 +643,7 @@ class DouYinVideo(DouYinBaseUploader):
+         debug: bool = DEBUG_MODE,
+         headless: bool = LOCAL_CHROME_HEADLESS,
+         declaration: str | None = None,
++        manual_review: bool = False,
+     ):
+         super().__init__(
+             publish_date=publish_date,
+@@ -661,6 +662,7 @@ class DouYinVideo(DouYinBaseUploader):
+         self.desc = desc or ""
+         self.collection_name = collection_name
+         self.declaration = declaration.strip() if declaration and declaration.strip() else None
++        self.manual_review = manual_review
+ 
+     async def apply_self_declaration(self, page: Page) -> None:
+         if not self.declaration:
+@@ -1048,8 +1050,6 @@ class DouYinVideo(DouYinBaseUploader):
+ 
+-        # 自主声明：本项目成片含 AI 生成内容（TTS 配音 / AI 字幕 / AI 前贴片），
+-        # 按平台合规如实选「内容由AI生成」（与转载等并列，单选，无二级选项、无需填来源）。
+-        if not self.declaration:
+-            self.declaration = "内容由AI生成"
++        # 中文：自主声明只采用调用方明确传入的选项，不根据剪辑流程自动推断。
++        # English: Apply a self-declaration only when the caller explicitly provides one.
+         await self.apply_self_declaration(page)
+ 
+         # 先归集：此时尚未打开封面弹窗，避免 dy-creator-content-portal 封面浮层拦截合集下拉
+@@ -1067,6 +1067,25 @@ class DouYinVideo(DouYinBaseUploader):
+         if self.publish_strategy == DOUYIN_PUBLISH_STRATEGY_SCHEDULED and self.publish_date != 0:
+             await self.set_schedule_time_douyin(page, self.publish_date)
+ 
++        if self.manual_review:
++            # 中文：默认把最终发布权留给用户；浏览器保持打开，用户可修改后亲自点击发布。
++            # English: Keep the final publish action with the user and leave the browser open for review.
++            douyin_logger.success("发布页面已准备完成；自动流程不会点击发布，请检查或修改后亲自点击发布")
++            while True:
++                if page.is_closed():
++                    raise RuntimeError("人工检查窗口已关闭，未检测到作品发布")
++                if "/creator-micro/content/manage" in page.url:
++                    douyin_logger.success("检测到用户已在浏览器中完成发布")
++                    break
++                await asyncio.sleep(1)
++
++            await context.storage_state(path=self.account_file)
++            douyin_logger.success("人工发布完成，cookie 已更新")
++            await asyncio.sleep(2)
++            await context.close()
++            await browser.close()
++            return
++
+         sms_prompt_logged = False
+         while True:
+             try:

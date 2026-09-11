@@ -1,0 +1,128 @@
+diff --git a/sau_cli.py b/sau_cli.py
+--- a/sau_cli.py
++++ b/sau_cli.py
+@@ -169,6 +169,7 @@ class BilibiliVideoUploadRequest:
+     tags: list[str]
+     publish_date: datetime | int
+     thumbnail_file: Path | None = None
++    only_self: bool = False
+ 
+ 
+ @dataclass(slots=True)
+@@ -582,12 +583,17 @@ async def upload_bilibili_video(request: BilibiliVideoUploadRequest) -> Path:
+         arguments.extend(["--tag", ",".join(request.tags)])
+     if request.thumbnail_file:
+         arguments.extend(["--cover", str(request.thumbnail_file)])
++    if request.only_self:
++        arguments.extend(["--is-only-self", "1"])
+     if isinstance(request.publish_date, datetime):
+         arguments.extend(["--dtime", str(int(request.publish_date.timestamp()))])
+ 
+     result = run_biliup_command(arguments)
+     if result.returncode != 0:
+         raise RuntimeError((result.stderr or result.stdout or "").strip() or "Bilibili upload failed")
++    success_output = (result.stdout or result.stderr or "").strip()
++    if success_output:
++        print(success_output)
+     return account_file
+ 
+ 
+@@ -909,6 +915,11 @@ def build_parser() -> argparse.ArgumentParser:
+     bilibili_upload_video_parser.add_argument("--tags", default="", help="Comma-separated tags, such as tag1,tag2")
+     bilibili_upload_video_parser.add_argument("--thumbnail", type=existing_file_path, help="Optional Bilibili cover image path")
+     bilibili_upload_video_parser.add_argument("--schedule", type=schedule_value, help=f"Schedule time in {schedule_help}")
++    bilibili_upload_video_parser.add_argument(
++        "--only-self",
++        action="store_true",
++        help="Submit the video as visible only to the account owner",
++    )
+ 
+     tencent_parser = platform_parsers.add_parser("tencent", help="Tencent/WeChat Channels operations")
+     tencent_actions = tencent_parser.add_subparsers(dest="action", required=True)
+@@ -1237,6 +1248,7 @@ async def dispatch(args: argparse.Namespace) -> int:
+                 tags=parse_tags(args.tags),
+                 publish_date=args.schedule or 0,
+                 thumbnail_file=args.thumbnail,
++                only_self=getattr(args, "only_self", False),
+             )
+             await upload_bilibili_video(request)
+             print(f"Bilibili video upload submitted: {request.video_file}")
+diff --git a/tests/test_sau_bilibili_cli.py b/tests/test_sau_bilibili_cli.py
+--- a/tests/test_sau_bilibili_cli.py
++++ b/tests/test_sau_bilibili_cli.py
+@@ -34,6 +34,29 @@ class BilibiliCliTests(unittest.TestCase):
+                 ]
+             )
+ 
++    def test_build_parser_accepts_only_self_for_upload_video(self):
++        with tempfile.TemporaryDirectory() as temp_dir:
++            video_path = Path(temp_dir) / "demo.mp4"
++            video_path.write_bytes(b"video")
++            args = sau_cli.build_parser().parse_args(
++                [
++                    "bilibili",
++                    "upload-video",
++                    "--account",
++                    "creator",
++                    "--file",
++                    str(video_path),
++                    "--title",
++                    "hello",
++                    "--desc",
++                    "hello",
++                    "--tid",
++                    "208",
++                    "--only-self",
++                ]
++            )
++        self.assertTrue(args.only_self)
++
+     def test_dispatch_bilibili_check_prints_valid(self):
+         args = Namespace(platform="bilibili", action="check", account="creator")
+         with patch("sau_cli.check_bilibili_account", new=AsyncMock(return_value=True)):
+@@ -56,3 +79,45 @@ class BilibiliCliTests(unittest.TestCase):
+                 asyncio.run(sau_cli.upload_bilibili_video(request))
+         self.assertIn("--cover", run_biliup.call_args.args[0])
+         self.assertIn("cover.png", run_biliup.call_args.args[0])
++
++    def test_upload_bilibili_video_passes_only_self_to_biliup(self):
++        with tempfile.TemporaryDirectory() as temp_dir:
++            account_file = Path(temp_dir) / "account.json"
++            account_file.write_text("{}", encoding="utf-8")
++            request = sau_cli.BilibiliVideoUploadRequest(
++                "creator",
++                Path("demo.mp4"),
++                "hello",
++                "hello",
++                208,
++                ["test"],
++                0,
++                None,
++                True,
++            )
++            with patch("sau_cli.resolve_account_file", return_value=account_file), patch(
++                "sau_cli.run_biliup_command",
++                return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
++            ) as run_biliup:
++                asyncio.run(sau_cli.upload_bilibili_video(request))
++        arguments = run_biliup.call_args.args[0]
++        flag_index = arguments.index("--is-only-self")
++        self.assertEqual(arguments[flag_index + 1], "1")
++
++    def test_upload_bilibili_video_prints_success_response(self):
++        with tempfile.TemporaryDirectory() as temp_dir:
++            account_file = Path(temp_dir) / "account.json"
++            account_file.write_text("{}", encoding="utf-8")
++            request = sau_cli.BilibiliVideoUploadRequest(
++                "creator", Path("demo.mp4"), "hello", "hello", 208, ["test"], 0
++            )
++            with patch("sau_cli.resolve_account_file", return_value=account_file), patch(
++                "sau_cli.run_biliup_command",
++                return_value=SimpleNamespace(
++                    returncode=0,
++                    stdout="BV1CN8c6XEDT upload succeeded",
++                    stderr="",
++                ),
++            ), patch("builtins.print") as print_mock:
++                asyncio.run(sau_cli.upload_bilibili_video(request))
++        print_mock.assert_any_call("BV1CN8c6XEDT upload succeeded")

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "job_id": "replace-me",
+  "account": "replace-me",
+  "stage": "idea",
+  "content": {"script": null, "prediction": null},
+  "video": {"workflow": null, "state": null, "final": null},
+  "publishing": {"douyin": null, "bilibili": null},
+  "created_at": null,
+  "updated_at": null
+}

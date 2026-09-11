@@ -1,0 +1,7 @@
+interface:
+  display_name: "自动真人剪辑"
+  short_description: "只提供真人口播素材，自动完成粗剪、字幕、动效、人声与单一成片"
+  default_prompt: "Use $auto-talking-head-editor to turn my talking-head footage into one publishable video."
+
+policy:
+  allow_implicit_invocation: true
