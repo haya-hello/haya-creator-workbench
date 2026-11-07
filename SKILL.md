@@ -7,6 +7,8 @@ description: Run an end-to-end creator workflow from a real idea or talking-head
 
 Treat one post or video as one recoverable job. Route by the user's current input instead of requiring workbench names.
 
+The full eight-step map is in [steps/README.md](steps/README.md). Use it when the user asks for the whole creator workflow, wants to resume a stage, or needs to understand which artifact should exist next.
+
 ## Route the request
 
 - Idea, experience, draft, topic, score, prediction, or retrospective: read [references/content-workflow.md](references/content-workflow.md).
@@ -14,6 +16,8 @@ Treat one post or video as one recoverable job. Route by the user's current inpu
 - Cover, title, upload, schedule, publish, or platform result: read [references/publishing-workflow.md](references/publishing-workflow.md).
 - New installation, machine, or project: read [references/installation.md](references/installation.md).
 - State recovery or cross-stage handoff: read [references/state-contract.md](references/state-contract.md).
+
+For stage-level execution, route to one step at a time: `steps/content.md`, `steps/intake.md`, `steps/edit.md`, `steps/caption-and-qa.md`, `steps/design-and-preview.md`, `steps/export.md`, `steps/package-and-publish.md`, or `steps/retro.md`. Read the linked module reference only for the active stage.
 
 ## Current workflow contract
 

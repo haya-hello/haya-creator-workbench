@@ -9,7 +9,16 @@ $required = @(
   "scripts\Invoke-DouyinPublish.ps1",
   "scripts\Invoke-BilibiliPublish.ps1",
   "scripts\Set-PublishApproval.ps1",
-  "scripts\Install-CodexSkill.ps1"
+  "scripts\Install-CodexSkill.ps1",
+  "steps\README.md",
+  "steps\content.md",
+  "steps\intake.md",
+  "steps\edit.md",
+  "steps\caption-and-qa.md",
+  "steps\design-and-preview.md",
+  "steps\export.md",
+  "steps\package-and-publish.md",
+  "steps\retro.md"
 )
 
 foreach ($relative in $required) {

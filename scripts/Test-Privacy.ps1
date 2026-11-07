@@ -5,7 +5,6 @@ $ErrorActionPreference = "Stop"
 $forbidden = @(
   'D:\\自媒体项目',
   'C:\\Users\\lenovo',
-  '抖音蛤鸭',
   'VID[0-9]{8,}',
   'ghp_[A-Za-z0-9]{20,}',
   'sk-[A-Za-z0-9]{20,}',

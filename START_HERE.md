@@ -1,10 +1,12 @@
 # Project handoff
 
-Updated: 2026-09-12
+Updated: 2026-11-07
 
 ## Status
 
 The repository is an active, sanitized public package of the latest creator workflow. It is published at `https://github.com/haya-hello/haya-creator-workbench`. The root `SKILL.md` routes content, editing, publishing, installation, and recovery. The September baseline replaces older motion-heavy editing defaults.
+
+The workflow is now explicitly split into eight stage contracts under `steps/`: content, intake, edit, captions/QA, design/preview, export, package/publish, and retrospective. Use `steps/README.md` as the stage index and keep the root Skill as the only public install entry.
 
 ## Entrypoints
 
